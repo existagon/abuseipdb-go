@@ -98,8 +98,6 @@ func TestBulkReport(t *testing.T) {
 			Comment:    "Bulk Report Test 2",
 		}).Build()
 
-	fmt.Println(csvContent)
-
 	res, err := client.BulkReport(csvContent)
 
 	if err != nil {
