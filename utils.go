@@ -6,22 +6,29 @@ import (
 )
 
 type BulkReportBuilder struct {
-	Reports []BulkReportReport
+	Reports []BulkReportLine
 }
 
-type BulkReportReport struct {
+type BulkReportLine struct {
 	IP         string
 	Categories []ReportCategory
 	Date       time.Time
 	Comment    string
 }
 
+// Create a new BulkReportBuilder for formatting BulkReport input
 func NewBulkReportBuilder() *BulkReportBuilder {
-	return &BulkReportBuilder{Reports: []BulkReportReport{}}
+	return &BulkReportBuilder{Reports: []BulkReportLine{}}
 }
 
-func (b *BulkReportBuilder) AddReport(report BulkReportReport) *BulkReportBuilder {
-	b.Reports = append(b.Reports, report)
+// Add a new Report to the Bulk Report
+func (b *BulkReportBuilder) AddReport(ip string, categories []ReportCategory, date time.Time, comment string) *BulkReportBuilder {
+	b.Reports = append(b.Reports, BulkReportLine{
+		IP:         ip,
+		Categories: categories,
+		Date:       date,
+		Comment:    comment,
+	})
 
 	return b
 }

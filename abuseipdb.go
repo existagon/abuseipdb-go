@@ -7,16 +7,14 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
 
 // CHECK: https://docs.abuseipdb.com/#check-endpoint
-
-type internalApiCheckResponse struct {
-	Data CheckResponse `json:"data"`
-}
 
 type CheckResponse struct {
 	IPAddress            string            `json:"ipAddress"`
@@ -51,25 +49,19 @@ func (c Client) Check(ip string) (*CheckResponse, error) {
 		return nil, errors.New("invalid IP Address")
 	}
 
-	query := fmt.Sprintf("verbose=true&ipAddress=%s", ip)
+	query := formatQuery(map[string]string{
+		"verbose":   "true",
+		"ipAddress": ip,
+	})
 	res, err := c.sendRequest("GET", "/check", query, nil)
 
 	if err != nil {
 		return nil, fmt.Errorf("error Checking IP Address: %s", err)
 	}
-
-	body, _ := io.ReadAll(res.Body)
-	jsonBody := *new(internalApiCheckResponse)
-	json.Unmarshal(body, &jsonBody)
-
-	return &jsonBody.Data, err
+	return readBody[CheckResponse](res)
 }
 
 // REPORTS: https://docs.abuseipdb.com/#reports-endpoint
-
-type internalApiGetReportsResponse struct {
-	Data GetReportsResponse `json:"data"`
-}
 
 type GetReportsResponse struct {
 	Total           int               `json:"total"`
@@ -97,25 +89,21 @@ func (c Client) GetReports(ip string, page, resultsPerPage int) (*GetReportsResp
 		return nil, errors.New("results per page must be between 25 and 100")
 	}
 
-	query := fmt.Sprintf("ipAddress=%s&page=%d&resultsPerPage=%d", ip, page, resultsPerPage)
+	query := formatQuery(map[string]string{
+		"ipAddress":      ip,
+		"page":           strconv.Itoa(page),
+		"resultsPerPage": strconv.Itoa(resultsPerPage),
+	})
 	res, err := c.sendRequest("GET", "/reports", query, nil)
 
 	if err != nil {
 		return nil, fmt.Errorf("error getting reports: %s", err)
 	}
 
-	body, _ := io.ReadAll(res.Body)
-	jsonBody := *new(internalApiGetReportsResponse)
-	json.Unmarshal(body, &jsonBody)
-
-	return &jsonBody.Data, err
+	return readBody[GetReportsResponse](res)
 }
 
 // BLACKLIST: https://docs.abuseipdb.com/#blacklist-endpoint
-
-type internalApiBlacklistResponse struct {
-	Data []BlacklistResponse `json:"data"`
-}
 
 type BlacklistResponse struct {
 	IPAddress            string    `json:"ipAddress"`
@@ -129,20 +117,19 @@ func (c Client) GetBlacklistSubscriber(limit, confidenceMinimum int, onlyCountri
 		return nil, errors.New("confidence minimum must be between 25 and 100")
 	}
 
-	query := fmt.Sprintf("limit=%d&confidenceMinimum=%d&onlyCountries=%s&exceptCountries=%s", limit, confidenceMinimum,
-		strings.Join(onlyCountries, ","),
-		strings.Join(exceptCountries, ","))
+	query := formatQuery(map[string]string{
+		"limit":             strconv.Itoa(limit),
+		"confidenceMinimum": strconv.Itoa(confidenceMinimum),
+		"onlyCountries":     strings.Join(onlyCountries, ","),
+		"exceptCountries":   strings.Join(exceptCountries, ","),
+	})
 	res, err := c.sendRequest("GET", "/blacklist", query, nil)
 
 	if err != nil {
 		return nil, fmt.Errorf("error getting blacklist: %s", err)
 	}
 
-	body, _ := io.ReadAll(res.Body)
-	jsonBody := *new(internalApiBlacklistResponse)
-	json.Unmarshal(body, &jsonBody)
-
-	return &jsonBody.Data, err
+	return readBody[[]BlacklistResponse](res)
 }
 
 func (c Client) GetBlacklist(limit int) (*[]BlacklistResponse, error) {
@@ -150,10 +137,6 @@ func (c Client) GetBlacklist(limit int) (*[]BlacklistResponse, error) {
 }
 
 // REPORT: https://docs.abuseipdb.com/#report-endpoint
-
-type internalApiReportResponse struct {
-	Data ReportResponse `json:"data"`
-}
 
 type ReportResponse struct {
 	IPAddress            string `json:"ipAddress"`
@@ -165,26 +148,21 @@ type ReportResponse struct {
 //
 // [this link]: https://www.abuseipdb.com/categories
 func (c Client) Report(ip string, categories []ReportCategory, comment string) (*ReportResponse, error) {
-	query := fmt.Sprintf("ip=%s&comment=%s&categories=%s", ip, comment, categoryArrayToCommaString(categories))
-
+	query := formatQuery(map[string]string{
+		"ip":         ip,
+		"categories": categoryArrayToCommaString(categories),
+		"comment":    comment,
+	})
 	res, err := c.sendRequest("POST", "/report", query, nil)
 
 	if err != nil {
 		return nil, fmt.Errorf("error reporting ip: %s", err)
 	}
 
-	body, _ := io.ReadAll(res.Body)
-	jsonBody := *new(internalApiReportResponse)
-	json.Unmarshal(body, &jsonBody)
-
-	return &jsonBody.Data, err
+	return readBody[ReportResponse](res)
 }
 
 // CHECK-BLOCK: https://docs.abuseipdb.com/#check-block-endpoint
-
-type internalApiCheckBlockResponse struct {
-	Data CheckBlockResponse `json:"data"`
-}
 
 type CheckBlockResponse struct {
 	NetworkAddress   string            `json:"networkAddress"`
@@ -208,26 +186,20 @@ type ReportedAddress struct {
 //
 // Note: Free Subscription can check up to a /24, Basic subscription up to a /20, and Premium subscription up to a /16
 func (c Client) checkBlock(cidr string, maxAgeInDays int) (*CheckBlockResponse, error) {
-	query := fmt.Sprintf("network=%s&maxAgeInDays=%d", cidr, maxAgeInDays)
-
+	query := formatQuery(map[string]string{
+		"network":      cidr,
+		"maxAgeInDays": strconv.Itoa(maxAgeInDays),
+	})
 	res, err := c.sendRequest("GET", "/check-block", query, nil)
 
 	if err != nil {
 		return nil, fmt.Errorf("error checking ip range: %s", err)
 	}
 
-	body, _ := io.ReadAll(res.Body)
-	jsonBody := *new(internalApiCheckBlockResponse)
-	json.Unmarshal(body, &jsonBody)
-
-	return &jsonBody.Data, err
+	return readBody[CheckBlockResponse](res)
 }
 
 // BULK_REPORT: https://docs.abuseipdb.com/#bulk-report-endpoint
-
-type internalApiBulkReportResponse struct {
-	Data BulkReportResponse `json:"data"`
-}
 
 type BulkReportResponse struct {
 	SavedReports   int             `json:"savedReports"`
@@ -242,11 +214,13 @@ type InvalidReport struct {
 
 // Bulk report IP Addresses from a CSV File
 //
-// See the [bulk report form] for information on formatting the CSV
+// It is recommended to use the BulkReportBuilder to easily generate the correct input for this method.
+// Otherise, see AbuseIPDB's [bulk report form] for information on how to format the file content
 //
 // [bulk report form]: https://www.abuseipdb.com/bulk-report
 func (c Client) BulkReport(fileContent string) (*BulkReportResponse, error) {
 
+	// Attach the bulk report csv as a multipart form file
 	var reqBody bytes.Buffer
 	writer := multipart.NewWriter(&reqBody)
 
@@ -271,26 +245,20 @@ func (c Client) BulkReport(fileContent string) (*BulkReportResponse, error) {
 		return nil, fmt.Errorf("error bulk reporting: %s", err)
 	}
 
-	body, _ := io.ReadAll(res.Body)
-	jsonBody := *new(internalApiBulkReportResponse)
-	json.Unmarshal(body, &jsonBody)
-
-	return &jsonBody.Data, err
+	return readBody[BulkReportResponse](res)
 }
 
 // CLEAR-ADDRESS: https://docs.abuseipdb.com/#clear-address-endpoint
-
-type internalApiClearAddressResponse struct {
-	Data ClearAddressResponse `json:"Data"`
-}
 
 type ClearAddressResponse struct {
 	NumReportsDeleted int `json:"numReportsDeleted"`
 }
 
 // Delete all of your reports for an IP Address
-func (c Client) ClearAddress(ipAddress string) (*ClearAddressResponse, error) {
-	query := fmt.Sprintf("ipAddress=%s", ipAddress)
+func (c Client) ClearAddress(ip string) (*ClearAddressResponse, error) {
+	query := formatQuery(map[string]string{
+		"ipAddress": ip,
+	})
 
 	res, err := c.sendRequest("DELETE", "/clear-address", query, nil)
 
@@ -298,9 +266,24 @@ func (c Client) ClearAddress(ipAddress string) (*ClearAddressResponse, error) {
 		return nil, fmt.Errorf("error clearing reports: %s", err)
 	}
 
-	body, _ := io.ReadAll(res.Body)
-	jsonBody := *new(internalApiClearAddressResponse)
-	json.Unmarshal(body, &jsonBody)
+	return readBody[ClearAddressResponse](res)
+}
 
-	return &jsonBody.Data, err
+// Read the response and return the body
+func readBody[T CheckResponse | GetReportsResponse | []BlacklistResponse | ReportResponse | CheckBlockResponse | BulkReportResponse | ClearAddressResponse](res *http.Response) (*T, error) {
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+
+	if err != nil {
+		return nil, fmt.Errorf("error reading body: %s", err)
+	}
+
+	// All the API response bodies are contained in a "Data" field
+	jsonBody := *new(struct{ Data T })
+	if err = json.Unmarshal(body, &jsonBody); err != nil {
+		return nil, fmt.Errorf("error converting response body to JSON: %s", err)
+	}
+
+	return &jsonBody.Data, nil
 }

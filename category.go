@@ -11,13 +11,13 @@ const (
 	CategoryFraudOrders
 	// Participating in distributed denial-of-service (usually part of botnet).
 	CategoryDDoSAttack
-
+	// Participating in an FTP Brute Force attack
 	CategoryFTPBruteForce
 	// Oversized IP packet.
 	CategoryPingOfDeath
 	// Phishing websites and/or email.
 	CategoryPhishing
-
+	// Participating in VoIP Fraud
 	CategoryFraudVoIP
 	// Open proxy, open relay, or Tor exit node.
 	CategoryOpenProxy
@@ -31,7 +31,7 @@ const (
 	CategoryVPNIP
 	// Scanning for open ports and vulnerable services.
 	CategoryPortScan
-
+	// Participating in Hacking
 	CategoryHacking
 	// Attempts at SQL injection.
 	CategorySQLInjection
