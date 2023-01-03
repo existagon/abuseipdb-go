@@ -33,6 +33,8 @@ func (b *BulkReportBuilder) AddReport(ip string, categories []ReportCategory, da
 	return b
 }
 
+// Format the Bulk report into CSV Format.
+// Can be passed into the BulkReport function
 func (b *BulkReportBuilder) Build() string {
 	csvStr := "IP,Categories,ReportDate,Comment\n"
 

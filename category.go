@@ -1,5 +1,6 @@
 package abuseipdbgo
 
+// A specific category to report an IP Address for based on malicious behaviour
 type ReportCategory int
 
 const (

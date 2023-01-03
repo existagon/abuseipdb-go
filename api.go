@@ -15,6 +15,7 @@ type Client struct {
 	ApiKey string
 }
 
+// Create a new AbuseIPDB Client
 func New(apiKey string) Client {
 	return Client{ApiKey: apiKey}
 }
@@ -38,10 +39,13 @@ func (c Client) sendRequest(method string, path string, query string, extraReque
 		return nil, fmt.Errorf("malformed query: %s", query)
 	}
 
+	// URL Encode the query
 	encodedQuery := parsedQuery.Encode()
 	requestPath, err := url.JoinPath(apiRoot, path)
 	requestURL := fmt.Sprintf("%s?%s", requestPath, encodedQuery)
 
+	// If specified, use the custom request body, otherwise use an empty buffer
+	// Most requests do not require the use of a custom body
 	var body *bytes.Buffer
 	if extraRequestData != nil {
 		body = extraRequestData.Body
@@ -55,12 +59,15 @@ func (c Client) sendRequest(method string, path string, query string, extraReque
 		return nil, fmt.Errorf("error creating HTTP request: %s", err)
 	}
 
+	// Set proper headers
 	req.Header.Set("Key", c.ApiKey)
 	req.Header.Set("User-Agent", "abuseipdb-go (https://github.com/existentiality/abuseipdb-go)")
 
+	// Default Content-Type to application/x-www-form-urlencoded, can be overwritten with custom headers
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 
+	// Apply custom headers for specific request
 	if extraRequestData != nil {
 		for name, content := range extraRequestData.Headers {
 			req.Header.Set(name, content)
@@ -73,7 +80,9 @@ func (c Client) sendRequest(method string, path string, query string, extraReque
 		return nil, fmt.Errorf("error sending HTTP request: %s", err)
 	}
 
-	if res.StatusCode != 200 {
+	// Non-OK status code
+	// Read the provided error and relay it to the user
+	if res.StatusCode < 200 || res.StatusCode > 299 {
 		body, _ := io.ReadAll(res.Body)
 		jsonBody := *new(jsonError)
 		json.Unmarshal(body, &jsonBody)

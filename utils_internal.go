@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
+// Check if the specified string is a valid IPv4 or IPv6 address
 func validateIP(ip string) bool {
-	// Check IP Validity
 	return net.ParseIP(ip) != nil
 }
 

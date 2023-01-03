@@ -23,7 +23,7 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestCheck(t *testing.T) {
-	res, err := client.Check("1.1.1.1")
+	res, err := client.Check("1.1.1.1", 30)
 
 	mustPanic(err)
 
@@ -33,7 +33,7 @@ func TestCheck(t *testing.T) {
 func TestGetReports(t *testing.T) {
 	page := 1
 
-	res, err := client.GetReports("1.1.1.1", page, 100)
+	res, err := client.GetReports("1.1.1.1", page, 100, 30)
 
 	mustPanic(err)
 
@@ -59,7 +59,7 @@ func TestReport(t *testing.T) {
 }
 
 func TestCheckBlock(t *testing.T) {
-	res, err := client.checkBlock("127.0.0.0/24", 30)
+	res, err := client.CheckBlock("127.0.0.0/24", 30)
 
 	if err != nil {
 		mustPanic(err)

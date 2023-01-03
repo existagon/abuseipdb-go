@@ -44,7 +44,11 @@ type ReportCheckData struct {
 }
 
 // Get information on a specific IP Address
-func (c Client) Check(ip string) (*CheckResponse, error) {
+//
+// ip: The IP Address to Check
+//
+// maxAgeInDays: How far back in time to check reports, (min 1, max 365) (abuseipdb default: 30)
+func (c Client) Check(ip string, maxAgeInDays int) (*CheckResponse, error) {
 	if !validateIP(ip) {
 		return nil, errors.New("invalid IP Address")
 	}
@@ -75,7 +79,15 @@ type GetReportsResponse struct {
 }
 
 // Get the reports for a specific IP Address
-func (c Client) GetReports(ip string, page, resultsPerPage int) (*GetReportsResponse, error) {
+//
+// ip: The IP Address to get reports for
+//
+// page: The page to check (min 1)
+//
+// resultsPerPage: The number of results to return per page (min 1, max 100) (abuseipdb default: 25)
+//
+// maxAgeInDays: How far back in time to check reports (min 1, max 365) (abuseipdb default: 30)
+func (c Client) GetReports(ip string, page, resultsPerPage, maxAgeInDays int) (*GetReportsResponse, error) {
 	// Validate Arguments
 	if !validateIP(ip) {
 		return nil, errors.New("invalid IP Address")
@@ -85,14 +97,15 @@ func (c Client) GetReports(ip string, page, resultsPerPage int) (*GetReportsResp
 		return nil, errors.New("page must be greater than or equal to 1")
 	}
 
-	if resultsPerPage < 1 {
-		return nil, errors.New("results per page must be between 25 and 100")
+	if resultsPerPage < 1 || resultsPerPage > 100 {
+		return nil, errors.New("results per page must be between 1 and 100")
 	}
 
 	query := formatQuery(map[string]string{
 		"ipAddress":      ip,
 		"page":           strconv.Itoa(page),
 		"resultsPerPage": strconv.Itoa(resultsPerPage),
+		"maxAgeInDays":   strconv.Itoa(maxAgeInDays),
 	})
 	res, err := c.sendRequest("GET", "/reports", query, nil)
 
@@ -111,7 +124,17 @@ type BlacklistResponse struct {
 	LastReportedAt       time.Time `json:"lastReportedAt"`
 }
 
-// GetBlackList function with extra parameters, only usable through an AbuseIPDB paid plan
+// GetBlacklist function with extra parameters that are only usable through an AbuseIPDB paid plan
+//
+// limit: The maximum number of IPs to list (max 10,000 for Free Plan, 100,000 for Basic, and 500,000 for Premium) (abuseipdb default: 10,000)
+//
+// confidenceMinimum: The minimum abuse confidence score to show in the blacklist (min 25, max 100) (abuseipdb default: 100)
+//
+// onlyCountries: only retrieve IPs from the specified countries
+//
+// exceptCountries: retreive IPs from all countries, except those listed
+//
+// onlyCountries and exceptCountries are mutually exclusive. Country codes should be given as ISO 3166 alpha-2 codes.
 func (c Client) GetBlacklistSubscriber(limit, confidenceMinimum int, onlyCountries, exceptCountries []string) (*[]BlacklistResponse, error) {
 	if confidenceMinimum < 25 || confidenceMinimum > 100 {
 		return nil, errors.New("confidence minimum must be between 25 and 100")
@@ -132,6 +155,10 @@ func (c Client) GetBlacklistSubscriber(limit, confidenceMinimum int, onlyCountri
 	return readBody[[]BlacklistResponse](res)
 }
 
+// Get a Blacklist of known malicious IPs
+// Note: This endpoint has restricted parameters limited to AbuseIPDB paid subscribers, if you wish to use those, please use the GetBlacklistSubscriber function
+//
+// limit: The maximum number of IPs to list (max 10,000 for Free Plan) (abuseipdb default: 10,000)
 func (c Client) GetBlacklist(limit int) (*[]BlacklistResponse, error) {
 	return c.GetBlacklistSubscriber(limit, 100, []string{}, []string{})
 }
@@ -144,9 +171,12 @@ type ReportResponse struct {
 }
 
 // Report an IP Address
-// See [this link] for a list of report categories
 //
-// [this link]: https://www.abuseipdb.com/categories
+// ip: The IP Address to report
+//
+// categories: A list of categories to report the IP for
+//
+// comment: Information related to the report (server logs, timestamps, etc.)
 func (c Client) Report(ip string, categories []ReportCategory, comment string) (*ReportResponse, error) {
 	query := formatQuery(map[string]string{
 		"ip":         ip,
@@ -184,8 +214,10 @@ type ReportedAddress struct {
 
 // Check an IP Subnet
 //
-// Note: Free Subscription can check up to a /24, Basic subscription up to a /20, and Premium subscription up to a /16
-func (c Client) checkBlock(cidr string, maxAgeInDays int) (*CheckBlockResponse, error) {
+// cidr: The network block to check in CIDR notation (Free Subscription can check up to a /24, Basic up to a /20, and Premium up to a /16)
+//
+// maxAgeInDays: How far back in days to check for reports (min 1, max 365) (abuseipdb default: 30)
+func (c Client) CheckBlock(cidr string, maxAgeInDays int) (*CheckBlockResponse, error) {
 	query := formatQuery(map[string]string{
 		"network":      cidr,
 		"maxAgeInDays": strconv.Itoa(maxAgeInDays),
@@ -255,6 +287,9 @@ type ClearAddressResponse struct {
 }
 
 // Delete all of your reports for an IP Address
+// Note: This only deletes reports your account has made, it cannot delete reports from other accounts
+//
+// ip: The IP Address to clear reports for
 func (c Client) ClearAddress(ip string) (*ClearAddressResponse, error) {
 	query := formatQuery(map[string]string{
 		"ipAddress": ip,
